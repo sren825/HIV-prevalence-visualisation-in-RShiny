@@ -1,0 +1,564 @@
+# install.packages('shiny')
+# install.packages('shinydashboard')
+# install.packages('ggplot2')
+# install.packages('ggthemes')
+# install.packages('party')
+# install.packages('caret')
+# install.packages('plotly')
+# install.packages('curl')
+# install.packages('RCurl')
+# install.packages('e1071')
+# install.packages('rpart')
+# install.packages('ranger')
+# install.packages('gbm')
+# install.packages('dplyr')
+# install.packages('ggpubr')
+# install.packages('tidyr')
+# install.packages('PerformanceAnalytics')
+# install.packages("viridis")
+# install.packages("hrbrthemes")
+library(hrbrthemes)
+library(viridis)
+library(dplyr)
+library(ggpubr)
+library(ggplot2)
+library(tidyr)
+library(shiny)
+library(shinydashboard)
+library(ggthemes)
+library(party)
+library(caret)
+library(plotly)
+library(curl)
+library(RCurl)
+library(e1071)
+library(rpart)
+library(ranger)
+library(gbm)
+
+## Data reading 
+setwd("E:/SMU/sem1/ISSS616 Stats in R/projects/ShinyHIV")
+descriptivedata <- read.csv("descriptive_dataset.csv")
+modeldata <- read.csv("predictive_train.csv")
+
+# Data Preparation 
+# Transform variables in descriptive data set
+colnames(descriptivedata)[1]= "Year"
+descriptivedata[,6:7]=descriptivedata[,6:7]*100
+
+# Transform variables in model data set
+modeldata$PMTCT.Receiving.Rate=round(modeldata$PMTCT.Receiving.Rate*100,digits = 0)
+
+# rename columns in model data
+colnames(modeldata)[c(3,4,5,6,7,8,9)]=c("PR","AR","PMR","ExpL","CL","NIR","PCR")
+
+# descriptiveregion list
+Regions=unique(descriptivedata$Region)
+#Regions <-gsub(" ","_", Regions,fixed = TRUE)
+
+############# Descriptive Plot #########
+# RegionInput1=Regions[4]
+#summary table
+# is.data.frame(descriptivedata)
+summaryfigure<-function(RegionInput){
+  xtable=descriptivedata[descriptivedata$Region == as.character(RegionInput), ]
+  p1<-xtable %>%
+    select(Year, New_infection, AIDS_related_death) %>%
+    gather(key = "variable", value = "value", -Year) %>%
+    ggline(x ="Year", y = "value", color = "variable", 
+           palette = "jco", 
+           shape = "variable", 
+           xlab='Year', ylab='Rate(%)', 
+           title = 'HIV Infection and Death Rate',
+           size = 1.5)
+  
+  #p2 for prevalance
+  p2<- xtable %>% ggline(x ="Year", y = "HIV_prevalence", 
+                         color = "chocolate2", 
+                         plot_type = "b",
+                         xlab='Year', ylab='Rate(%)', 
+                         title = 'HIV Prevalance Rate',
+                         size = 1.5)
+  
+  #p3 for ART&PMTCT
+  p3<-xtable %>%
+    select(Year, ART_coverage, PMTCT_coverage) %>%
+    gather(key = "variable", value = "value", -Year) %>%
+    ggline(x ="Year", y = "value", color = "variable", 
+           palette = "jco", 
+           shape = "variable", 
+           xlab='Year', ylab='Rate(%)', 
+           title = 'ART and PMTCT Treatment Coverage',
+           size = 1.5) 
+  
+  #p4 for gov expenditure
+  p4 <- xtable[xtable$Year<2017,] %>%
+    ggline(x ="Year", y = "HIV_expenditure_per_capita", 
+           color = "olivedrab", 
+           plot_type = "b",
+           xlab='Year', ylab='Dollar($)', 
+           title = 'Government Expenditure on HIV',
+           size = 1.5)
+  #arrange on one page
+  ggarrange(p1, p2, p3, p4, 
+            labels = c("A", "B", "C", "D"),
+            ncol = 2, nrow = 2) %>% 
+    annotate_figure(top = text_grob("Descriptive Summary Figure", color = "grey10", face = "bold", size = 14))
+}
+# RegionInput1=Regions[4]
+# summaryfigure(RegionInput1)
+
+
+############ ANOVA ############
+anovaplot<-function(){
+    varInput = colnames(descriptivedata)[3]
+     p1 <-ggboxplot(data = descriptivedata, mapping = aes(x="Region"),x="Region", y = varInput,
+              color="Region", palette = "jco",
+              ylab=varInput, xlab="")+  theme(
+                axis.text.x=element_blank())
+     
+     
+     varInput = colnames(descriptivedata)[4]
+     p2 <-ggboxplot(data = descriptivedata, mapping = aes(x="Region"),x="Region", y = varInput,
+                    color="Region", palette = "jco",
+                    ylab=varInput, xlab="")+  theme(
+                      axis.text.x=element_blank(),legend.position = "none")
+     
+     varInput = colnames(descriptivedata)[5]
+     p3 <-ggboxplot(data = descriptivedata, mapping = aes(x="Region"),x="Region", y = varInput,
+                    color="Region", palette = "jco",
+                    ylab=varInput, xlab="")+  theme(
+                      axis.text.x=element_blank(),legend.position = "none")
+     
+     varInput = colnames(descriptivedata)[6]
+     p4 <-ggboxplot(data = descriptivedata, mapping = aes(x="Region"),x="Region", y = varInput,
+                    color="Region", palette = "jco",
+                    ylab=varInput, xlab="")+  theme(
+                      axis.text.x=element_blank(),legend.position = "none")
+     
+     varInput = colnames(descriptivedata)[7]
+     p5 <-ggboxplot(data = descriptivedata, mapping = aes(x="Region"),x="Region", y = varInput,
+                    color="Region", palette = "jco",
+                    ylab=varInput, xlab="")+  theme(
+                      axis.text.x=element_blank(),legend.position = "none")
+     
+     varInput = colnames(descriptivedata)[8]
+     p6 <-ggboxplot(data = descriptivedata, mapping = aes(x="Region"),x="Region", y = varInput,
+                    color="Region", palette = "jco",
+                    ylab=varInput, xlab="")+  theme(
+                      axis.text.x=element_blank(),legend.position = "none")
+     ggarrange(p1, p2, p3, p4, p5, p6,
+               ncol = 1, nrow = 6) %>% 
+       annotate_figure(top = text_grob("Summary Box Plots", color = "grey10", face = "bold", size = 14))
+}
+
+anovaSum = function(variable){  
+  res.aov.hp <- aov(HIV_prevalence ~ Region, data = descriptivedata)
+  HP <- summary(res.aov.hp)
+  res.aov.ni <- aov(New_infection ~ Region, data = descriptivedata)
+  NI <- summary(res.aov.ni)
+  res.aov.ard <- aov(AIDS_related_death ~ Region, data = descriptivedata)
+  ARD <- summary(res.aov.ard)
+  res.aov.ac <- aov(ART_coverage ~ Region, data = descriptivedata)
+  AC <- summary(res.aov.ac)
+  res.aov.pmc <- aov(PMTCT_coverage ~ Region, data = descriptivedata)
+  PMC <- summary(res.aov.pmc)
+  res.aov.exp <- aov(HIV_expenditure_per_capita ~ Region, data = descriptivedata)
+  EXP <- summary(res.aov.exp)
+  
+  list1 <- c(HP,NI,ARD,AC,PMC,EXP)
+  list1 [variable]
+  # # print(paste(HP,"test"))
+  # print(NI)
+  # print("Analysis on New Infection Rate")
+}
+
+# anovaSum(3)
+
+############# T test ###############
+t_test<-function(region1,region2,variable){
+  #plot
+  p<-descriptivedata[descriptivedata$Region==c(as.character(region1),as.character(region2)), ] %>%
+    ggline(x ="Year", y = as.character(variable), color = "Region", 
+           palette = "jco", 
+           #shape = "Region", 
+           xlab='Year', ylab='Rate(%)', 
+           title = paste("Compare",region1,"and",region2,"by",variable),
+           font.title=20,font.xlab=15,font.ylab=15,font.color =15,
+           size = 2)
+  print(p)
+  sample1=descriptivedata[descriptivedata$Region==as.character(region1),as.character(variable)]
+  sample2=descriptivedata[descriptivedata$Region==as.character(region2),as.character(variable)]
+  t.test(sample1,sample2,conf.level = 0.95)
+}
+
+regionI1=Regions[1]
+regionI1
+regionI2=Regions[1]
+regionI2
+# by = "AIDS_related_death"
+by = "HIV_prevalence"
+t_test(regionI1,regionI2,by)
+
+############# Build Predictive Model ###############
+# select relevant columns from modeldata
+maindataset <- modeldata[,c(3,4,5,6,7,8,9)]
+modeldata <- maindataset
+#summary(modeldata)
+#colnames(modeldata)
+
+#split data to train and test for prediction
+set.seed = 1234
+n=nrow(modeldata)
+train.index = sample(n,floor(0.8*n))
+train = modeldata[train.index,]
+test = modeldata[-train.index,]
+#nrow(test)
+
+#train predictive model
+model<- gbm(NIR ~ ., data = train,  distribution = "gaussian", n.trees = 10000, shrinkage = 0.1, interaction.depth = 5, cv.folds = 5)
+# print in app
+summary(model)
+
+# Check performance using 5-fold cross-validation
+best.iter <- gbm.perf(model, method = "cv")
+#print(best.iter)
+
+# used best.iter to make a prediction
+p<-predict(model,test,n.trees=best.iter)
+
+# Check performance of predictive model
+# need print in app
+postResample(p,test$NIR)
+
+
+pr=0.1
+ar=0.1
+pmr=0.1
+el=1
+cl=1
+pcr=0.1
+
+
+newtest=data.frame("PR"=pr,"AR"=ar,"PMR"=pmr,"ExpL"=el,"CL"=cl,"PCR"=pcr)
+#predict new infection rate
+out = predict.gbm(model,newtest)
+# out
+
+################# UI code segment ##################
+
+ui <- dashboardPage(skin = "purple",
+                    dashboardHeader(title = "HIV Dashboard"),
+                    dashboardSidebar(
+                      sidebarMenu(
+                        menuItem("Current Situation", 
+                                 menuSubItem("Overview",tabName = "Current_Situation_ANOVA"),
+                                 menuSubItem("Regional Summary",tabName = "Current_Situation_Region_plot")),
+                        menuItem("Region Comparison", tabName = "Region_Comparison"),
+                        menuItem("Predictive Model", 
+                                 menuSubItem("Input and Result", tabName = "Input_and_Result"),
+                                 menuSubItem("Summary", tabName = "Summary"))
+                        
+                      )
+                    ),
+                    dashboardBody(
+                      # Boxes need to be put in a row (or column)
+                      tabItems(
+                        tabItem(tabName = "Current_Situation_ANOVA",
+                                fluidPage(
+                                  fluidRow(
+                                    box(width = 12,title = "Box Plots",background = "olive",collapsible = TRUE,collapsed = TRUE,
+                                        plotOutput('anova', width = "100%", height = "1800px")
+                                        )
+                                    ),
+                                    fluidRow(
+                                      box(width = 12,title = "ANOVA Analysis",background = "olive",collapsible = TRUE,collapsed = TRUE,
+                                          # plotOutput('anova', width = "100%", height = "1800px")
+                                          # h2("Anova analysis"),
+                                          h4("Analysis on HIV prevalence"),
+                                          verbatimTextOutput('anovaResult1'),
+                                          h4("Analysis on New infection Rate"),
+                                          verbatimTextOutput('anovaResult2'),
+                                          h4("Analysis on AIDS related death "),
+                                          verbatimTextOutput('anovaResult3'),
+                                          h4("Analysis on ART coverge"),
+                                          verbatimTextOutput('anovaResult4'),
+                                          h4("Analysis on PMTCT coverage"),
+                                          verbatimTextOutput('anovaResult5'),
+                                          h4("Analysis on HIV expenditure per capita"),
+                                          verbatimTextOutput('anovaResult6')
+                                          
+                                      )
+                                      )
+                                  )
+                                  ),
+                                
+                              
+                        tabItem(tabName = "Current_Situation_Region_plot",
+                                
+                                fluidPage(
+                                  fluidRow(
+                                    #map selection
+                                    # dropdown selection
+                                    box(width = 12,background = "olive",
+                                        selectInput(inputId = "selectRegion", 
+                                                               label = tags$strong("Select region:"),
+                                                                choices = c("Asia and the Pacific" = "Asia_and_the_Pacific",
+                                                                            "Caribbean" = "Caribbean",
+                                                                           "Eastern and southern Africa" = "Eastern_and_southern_Africa",
+                                                                           "Middle East and North Africa" = "Middle_East_and_North_Africa",
+                                                                           "Western and central Africa" = "Western_and_central_Africa",
+                                                                           "Eastern Europe and central Asia" = "Eastern_Europe_and_central_Asia",
+                                                                           "Latin America" = "Latin_America",
+                                                                           "Western and central Europe and North America" = "Western_and_central_Europe_and_North_America"))
+                                        
+                                     ), #end box
+                                    #Display summary plot
+                                    box(width = 12, background = "blue",collapsible = TRUE,
+                                      h3(textOutput("select")),
+                                      plotOutput('summaryPlot', width = "80%", height="800px")
+                                    )
+                                  )
+                                )
+                                ),
+                        tabItem(tabName = "Region_Comparison",
+                                fluidPage(
+                                  titlePanel('HIV comparison across regions'),status= "primary",
+                                  # row for input selection
+                                  fluidRow(
+                                    column(width = 6,
+                                           box(width = 12,background = "olive",
+                                               selectInput(inputId = "selectRegion1", 
+                                                           label = tags$strong("Select first region:"),
+                                                           choices = c("Asia and the Pacific" = "Asia_and_the_Pacific",
+                                                                       "Caribbean" = "Caribbean",
+                                                                       "Eastern and southern Africa" = "Eastern_and_southern_Africa",
+                                                                       "Middle East and North Africa" = "Middle_East_and_North_Africa",
+                                                                       "Western and central Africa" = "Western_and_central_Africa",
+                                                                       "Eastern Europe and central Asia" = "Eastern_Europe_and_central_Asia",
+                                                                       "Latin America" = "Latin_America",
+                                                                       "Western and central Europe and North America" = "Western_and_central_Europe_and_North_America")
+                                               ))),
+                                    column(width = 6,
+                                           box(width = 12,background = "olive",
+                                               selectInput(inputId = "selectRegion2", 
+                                                           label = tags$strong("Select second region:"),
+                                                           choices = c("Middle East and North Africa" = "Middle_East_and_North_Africa","Asia and the Pacific" = "Asia_and_the_Pacific",
+                                                                       "Caribbean" = "Caribbean",
+                                                                       "Eastern and southern Africa" = "Eastern_and_southern_Africa",
+                                                                       "Western and central Africa" = "Western_and_central_Africa",
+                                                                       "Eastern Europe and central Asia" = "Eastern_Europe_and_central_Asia",
+                                                                       "Latin America" = "Latin_America",
+                                                                       "Western and central Europe and North America" = "Western_and_central_Europe_and_North_America")
+                                               )
+                                               
+                                           ))
+                                               
+                                               
+                                               
+                                           ), #end of row
+                                           
+                                           
+                                  fluidRow(
+                                    column(width = 12,
+                                           box(width = 12,background = "olive",
+                                               radioButtons('analyseBy',
+                                                            label = tags$strong('Compare By:'),
+                                                            choices = c(
+                                                              'New Infection' = 'New_infection',
+                                                              'Prevalence' = 'HIV_prevalence',
+                                                              'AIDS Related Death' = 'AIDS_related_death',
+                                                              'ART Coverage' = 'ART_coverage',
+                                                              'PMTCT Coverage' = 'PMTCT_coverage',
+                                                              'Expenditure per capital' = 'HIV_expenditure_per_capita'),
+                                                            inline = TRUE) 
+                                           ) #end of box
+                                           
+                                    )
+                                  ), # end of fliudRow
+                                  
+                                  fluidRow(
+                                    title = "T test result",
+                                    
+                                    column(width = 12,
+                                      box(width = 12,background = "blue",collapsible = TRUE,
+                                        verbatimTextOutput('ttSum'))
+                                    ) # end column
+                                  ),
+                                  #row for plot
+                                  fluidRow(collapsible = TRUE,
+                                    column(width = 12,
+                                           box(
+                                             width = 12,
+                                             height = 800,
+                                             solidHeader = TRUE,
+                                             collapsible = FALSE,
+                                             plotOutput('result', width = "80%", height = "650px")
+                                           )
+                                    )
+                                  ) #end of fluidRow
+                                 
+
+                                ) 
+                                ),#end of tabname "Descriptive" 
+                        
+                        # First tab content
+                        tabItem(
+                          tabName = "Input_and_Result",
+                                h2("Input Details"),
+                                fluidRow(
+                                  box(title = "Enter HIV Prevalence Rate (%)",
+                                      height = 150,width = 3, background = "olive",
+                                      numericInput("pr", label = h6(""), value = 10)
+                                  ),
+                                  box(title = "Enter ART Treatment Rate (%)",
+                                      height = 150,width = 3, background = "olive",
+                                      numericInput("ar", label = h6(""), value = 10)
+                                  ),
+                                  box(title = "Enter PMTCT Rate (%)",
+                                      height = 150,width = 3, background = "olive",
+                                      numericInput("pmr", label = h6(""), value = 10)
+                                  ),
+                                  box(title = "Enter PMTCT Receiving Rate (%)",
+                                      height = 150,width = 3, background = "olive",
+                                      numericInput("pcr", label = h6(""), value = 10)
+                                  ),
+                                  box(title = "Select Expenditre per capital Level",
+                                      height = 150,width = 3, background = "blue",
+                                      selectInput(inputId = "el",label=h6(""),
+                                                  choices = c("1","2","3","4"),selected = "1")
+                                  ),
+                                  box(title = "Select Cognitive Level",
+                                      height = 150,width = 3, background = "blue",
+                                      selectInput(inputId = "cl",label=h6(""),
+                                                  choices = c("1","2","3"),selected = "1")
+                                  )),
+                          
+                          h2("Output Prediction Result"),
+                                  fluidRow(height = 60, width =5,
+                                      tags$style(HTML('#submit{border-radius: 20px;
+                                      background:  #7a00cc;
+                                      color: white;
+                                      margin-left: 15px;
+                                      margin-bottom: 60px;
+                                      margin-top: 15px;}')),
+                                      actionButton("submit","Predict the New Infection Rate")
+                                  ),
+                                  fluidRow(
+                                    box(title = "Prediction", background = NULL, 
+                                      height = 120,width = 12,
+                                      status = "primary",  solidHeader = TRUE,
+                                      # p("Predicted new infection rate is at" + textOutput("predictedNIR") ),
+                                      h3(textOutput("predictedNIR"))                               
+                                      )
+                                  )    
+                        ),
+                        
+                        # Second tab content
+                        tabItem(tabName = "Summary",
+                                fluidRow(
+                                  box(title = "Model Summary", background = "purple",width = 12, 
+                                      status = "primary",solidHeader = TRUE, collapsible = TRUE,collapsed = TRUE,
+                                      h5(paste("Using",best.iter,"trees")),
+                                      #verbatimTextOutput('treeSum'),
+                                      h3("Best iteration"),
+                                      plotOutput('bestIter',width = "100%", height = "650px"),
+                                      h3("Model Relative Influence"),
+                                      plotOutput('modelSummary', width = "100%", height = "650px"),p("PR:Prevalence Rate  AR:ART Rate                  PCR:PMTCT Receiving Rate"),
+                                      p("PMR:PMTCT Rate      Expl:Expenditure per Capita  CL: Cognitive Level"),
+                                      h3("Summary"),
+                                      verbatimTextOutput('reSam')
+                                      
+                                  )
+                                )
+                        )
+                      )
+                    )
+)
+
+############# Server Code Segment ##################
+server <- function(input, output) {
+    #summary figure
+    output$anova <- renderPlot({
+      anovaplot()
+    })
+    
+      output$select <- renderText({
+        regiondis <-gsub("_"," ", input$selectRegion,fixed = TRUE)
+        paste("Region: ",as.character(regiondis))
+      })
+      
+      output$summaryPlot <- renderPlot({
+      summaryfigure(input$selectRegion)
+    })
+      
+      output$result <- renderPlot({
+        t_test(input$selectRegion1,input$selectRegion2,input$analyseBy)
+      })
+      
+      
+      output$anovaResult1 <- renderPrint({
+        anovaSum(1)
+      })
+      output$anovaResult2 <- renderPrint({
+        anovaSum(2)
+      })
+      output$anovaResult3 <- renderPrint({
+        anovaSum(3)
+      })
+      output$anovaResult4 <- renderPrint({
+        anovaSum(4)
+      })
+      output$anovaResult5 <- renderPrint({
+        anovaSum(5)
+      })
+      output$anovaResult6 <- renderPrint({
+        anovaSum(6)
+      })
+      output$ttSum <- renderPrint({
+        t_test(input$selectRegion1,input$selectRegion2,input$analyseBy)
+      })
+      
+      output$reSam <- renderPrint({
+        postResample(p,test$NIR)
+      })
+      output$treeSum <- renderPrint({
+        predict.gbm(model,newtest)
+      })
+      
+      output$modelSummary <- renderPlot(
+        {
+          summary(model)
+        }
+      )
+      output$bestIter <- renderPlot({
+        best.iter <- gbm.perf(model, method = "cv")
+      }
+      )
+      
+      preNIR <- eventReactive(input$submit, {
+        #newtest=data.frame("PR"=input$pr,"AR"=input$ar,"PMR"=input$pmr,"ExpL"=input$el,"CL"=input$cl,"PCR"=input$pcr)
+        pr = input$pr
+        ar = input$ar
+        pmr=input$pmr
+        el =input$el
+        cl =input$cl
+        pcr = input$pcr
+        
+        newtest=data.frame("PR"=as.numeric(pr),"AR"=as.numeric(ar),"PMR"=as.numeric(pmr),"ExpL"=as.numeric(el),"CL"=as.numeric(cl),"PCR"=as.numeric(pcr))
+        out = predict.gbm(model,newtest)
+        out = signif(out, 3)
+       # return(out)
+        paste("Predicted new infection rate (%) is at", out)  
+        
+      })
+      
+      output$predictedNIR <- renderText({
+        preNIR()
+      })
+}
+
+
+###### Launch APP######
+shinyApp(ui, server)
+
